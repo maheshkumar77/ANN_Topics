@@ -1,63 +1,56 @@
-import math
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pickle
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from sklearn.metrics import confusion_matrix, classification_report
 
-# Sigmoid function
-def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
+df=pd.read_csv('/content/diabetes_prediction_dataset.csv')
+df.head()
+df['gender']=(df['gender']=='Male').astype(int)
+df['smoking_history'] = df['smoking_history'].map({
+    'never': 0,
+    'former': 1,
+    'current': 2,
+    'not current': 3
+}).fillna(-1)
+X = df.drop("diabetes", axis=1)   # Input features
+y = df["diabetes"]                # Target column
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+print("Training Data Shape:", X_train.shape)
+print("Test Data Shape:", X_test.shape)
+model = Sequential()
+model.add(Dense(16, activation='relu', input_shape=(X_train.shape[1],)))
+model.add(Dense(8, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
 
-# Derivative of sigmoid
-def sigmoid_derivative(x):
-    return x * (1 - x)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# Training data (X, Y)
-X = [0, 1]   # input
-Y = [0, 1]   # expected output
-
-# Initialize weights and bias randomly
-w1 = 0.5   # input → hidden
-b1 = 0.0
-
-w2 = 0.5   # hidden → output
-b2 = 0.0
-
-learning_rate = 0.1
-epochs = 10
-
-for epoch in range(epochs):
-    print(f"\nEpoch {epoch+1}")
-
-    for x, y_true in zip(X, Y):
-
-        # -------- FORWARD PROPAGATION --------
-        z1 = w1 * x + b1
-        a1 = sigmoid(z1)   # hidden neuron output
-
-        z2 = w2 * a1 + b2
-        y_pred = sigmoid(z2)  # final output
-
-        # -------- LOSS (MSE) --------
-        loss = (y_true - y_pred) ** 2
-        print(f"Input: {x}, Predicted: {y_pred:.4f}, Loss: {loss:.4f}")
-
-        # -------- BACKPROPAGATION --------
-
-        # Output layer gradient
-        d_loss_y = -2 * (y_true - y_pred)
-        d_y_z2 = sigmoid_derivative(y_pred)
-        d_z2_w2 = a1
-
-        # Update w2 and b2
-        w2 = w2 - learning_rate * d_loss_y * d_y_z2 * d_z2_w2
-        b2 = b2 - learning_rate * d_loss_y * d_y_z2
-
-        # Hidden layer gradient
-        d_z2_a1 = w2
-        d_a1_z1 = sigmoid_derivative(a1)
-        d_z1_w1 = x
-
-        # Update w1 and b1
-        w1 = w1 - learning_rate * d_loss_y * d_y_z2 * d_z2_a1 * d_a1_z1 * d_z1_w1
-        b1 = b1 - learning_rate * d_loss_y * d_y_z2 * d_z2_a1 * d_a1_z1
-
-print("\nFinal weights:")
-print("w1:", w1, "b1:", b1)
-print("w2:", w2, "b2:", b2)
+history=model.fit(X_train, y_train, epochs=20, batch_size=32)
+loss, accuracy = model.evaluate(X_test, y_test)
+print("Test Accuracy:", accuracy)
+print("Test loss:", loss)
+y_pred = model.predict(X_test)
+y_pred = (y_pred > 0.5).astype(int)
+print(confusion_matrix(y_test, y_pred))
+print('*******************************')
+print(classification_report(y_test, y_pred))
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title("Model Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend(["Train", "Test"])
+plt.show()
+plt.plot(history.history['loss'])
+plt.title("Model Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend(["Train"])
+plt.show()
